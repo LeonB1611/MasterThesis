@@ -1,0 +1,336 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[ ]:
+
+
+def weighted_quantile(
+    values,
+    quantiles,
+    sample_weight=None,
+    values_sorted=False,
+):
+    """
+    Very close to numpy.percentile, but supports weights. Qantiles should be in [0, 1]!
+    
+    Parameters
+    ----------
+    values : array of floats
+        Input data.
+    quantiles : array of floats
+        Quantile values to compute.
+    sample_weight : array of floats
+        Weights of the input data.
+    values_sorted : bool
+        Are the input values sorted, or not.
+
+    Returns
+    -------
+    quantiles : array of floats
+        Computed quantiles.
+    """
+
+    import numpy as np
+
+    values = np.array(values)
+    quantiles = np.array(quantiles)
+
+    if values.size == 0: return(np.nan)
+
+    if sample_weight is None:
+        sample_weight = np.ones(len(values))
+
+    sample_weight = np.array(sample_weight)
+
+    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), 'quantiles should be in [0, 1]'   
+
+    if not values_sorted:
+        sorter = np.argsort(values)
+        values = values[sorter]
+        sample_weight = sample_weight[sorter]
+
+    weighted_quantiles = np.cumsum(sample_weight) - 0.5 * sample_weight
+    weighted_quantiles /= np.sum(sample_weight)
+
+    return np.interp(quantiles, weighted_quantiles, values)
+'''
+def pccolormap2d():
+        dfs = np.zeros(2) #temp addition to stop error when importing weighted quantiles
+    # plot reco vs true
+
+    step_contours = True
+
+    print_bool = False
+    # print_bool = True
+
+    # bin_count = True
+    bin_count = False
+
+    scale_per_column = True
+    # scale_per_column = False
+
+    for key, data_dict in dfs.iteritems():
+        print(key)
+
+        simset = int(key.split('_')[0])
+
+        if simset in [194601, 194602]:
+            axis_name = 'up-going'
+            plot_bins_list = [   
+                np.linspace(0,300,21),
+                np.linspace(0,60,21),
+                np.linspace(0,60,21),
+                np.linspace(0,120,21),
+            ]
+
+            log_axis = [
+            ]
+
+        elif simset in [194603]:
+            axis_name = 'realistic'
+            plot_bins_list = [
+                np.linspace(0,300,21),
+                np.geomspace(1e00,1e3,21),
+                np.geomspace(1e00,1e3,21),
+                np.geomspace(1e00,1e3,21),
+            ]
+
+            log_axis = [
+                'casc0_{}_energy',
+                'casc1_{}_energy',
+                '{}_total_energy',
+            ]
+
+        for plot_var_base, plot_bins, label in zip(plot_variables, plot_bins_list, labels):
+    #     for plot_var_base, plot_bins, label, ticks_dict in zip(plot_variables, plot_bins_list, labels, plot_ticks):
+
+            print(plot_var_base)
+
+            log_axis_bool = plot_var_base in log_axis
+
+            true_variable = '{}'.format(plot_var_base.format('true'))
+            reco_variable = '{}'.format(plot_var_base.format('reco'))
+
+    # #         all events
+    #         total_bool = np.ones(len(data_dict['true_decay_length']), dtype=bool) & data_dict['reco_success']
+    #         ax_title = '{} - fullset'.format(simset)
+    #         ax_label = 'fullset'
+
+    #         good fit
+    #         total_bool = data_dict['good_fit']
+            ax_label = 'goodfit'
+
+    #         ax_title = '{} - good fit ($E^{{0,1}}_{{reco}}, L_{{reco}}>0$)'.format(axis_name)
+    #         ax_title = r'Up-Going Double Cascades' 
+
+            ax_title = r'Realistic Double Cascades' 
+
+    #         good fit above 10 GeV
+            total_bool = data_dict['good_fit_above_10_GeV']
+            ax_label = 'goodfit_above_10_GeV'
+    #         total_bool = data_dict['good_fit']
+
+            true_data = data_dict[ true_variable ][total_bool]
+            reco_data = data_dict[ reco_variable ][total_bool]
+
+            assert(len(true_data) == len(reco_data))
+
+            if(print_bool):
+                print('Total Events: {}'.format(len(true_data)))
+                print('Events with {} <= {}: {}'.format(reco_variable, plot_bins[0], np.sum(reco_data <= plot_bins[0])))
+
+            true_label = label.format('true')
+            reco_label = label.format('reco')
+    #         print(true_label, reco_label)
+
+            weight = np.ones(len(true_data))
+
+            if(log_axis_bool):
+                midbins = np.sqrt(plot_bins[:-1] * plot_bins[1:])  # middle of bins in logspace
+            else:
+                midbins = (plot_bins[1:] - plot_bins[:-1])/2 + plot_bins[:-1]  # middle of bins in linspace
+
+
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(7.5,6))
+
+            EventCount, _, __ = np.histogram2d(true_data,
+                                               reco_data,
+                                               bins=(plot_bins, plot_bins),
+                                              )
+            H, xedges, yedges = np.histogram2d(true_data,
+                                               reco_data,
+                                               bins=(plot_bins, plot_bins),
+                                               weights=weight,
+                                              )
+
+            H = H.T
+
+            if scale_per_column:
+        #     norm each column
+        #     take care of empty bins
+                H_divide = np.sum(H, axis=0)
+                H_divide[H_divide == 0] = 1.
+                H /= H_divide
+
+        #         else:
+        #             print(np.sum(H))
+
+            X, Y = np.meshgrid(xedges, yedges)
+
+            im = ax.pcolormesh(
+                X,
+                Y,
+                H,
+    #             cmap='YlGnBu_r',
+                cmap='GnBu',
+                vmin = 0.0,            
+            )
+
+            if scale_per_column:
+                cbar = fig.colorbar(im, 
+                                    ax=ax, 
+                                    format='%.2f',
+    #                                 norm=colors.LogNorm(vmin=0.0,vmax=np.max(H)),
+                                   )
+    #             cbar.set_clim(0.0, 0.5)
+                cbar.set_label(r'PDF/bin$_\mathrm{x}$')
+            else:
+                cbar = fig.colorbar(im, 
+                                    ax=ax, 
+    #                                 format='%.1e',
+                                   )
+            #     cbar.set_clim(0.0, 1.0)
+                cbar.set_label(r'Events')
+
+            # also plot median
+            median = []
+            pct_16 = []
+            pct_84 = []
+
+            bin_mask_reco = np.logical_and(plot_bins[0] < reco_data, reco_data < plot_bins[-1])
+
+            for i in range(len(plot_bins)-1):
+                # first check: is it in energy range
+                bin_mask = np.logical_and(plot_bins[i] < true_data, true_data < plot_bins[i+1])
+                bin_mask = np.logical_and(bin_mask_reco, bin_mask)
+
+                if(reco_data[bin_mask].size):
+                    median.append(weighted_quantile( reco_data[bin_mask], 0.5, weight[bin_mask] ))
+                    pct_16.append(weighted_quantile( reco_data[bin_mask], 0.16, weight[bin_mask] ))
+                    pct_84.append(weighted_quantile( reco_data[bin_mask], 0.84, weight[bin_mask] ))
+                else:
+                    median.append(0)
+                    pct_16.append(0)
+                    pct_84.append(0)
+
+            e_minmax = [np.min(plot_bins), np.max(plot_bins)]
+
+            ax.plot(e_minmax, e_minmax, color='k')
+            if(print_bool):
+                print('Events in histogram: {} ({:.1f}%)'.format(int(np.sum(EventCount)), 100*float(np.sum(EventCount)/sum(total_bool))))
+
+
+            if(bin_count):
+        #         add number of events to bin
+                for i_x in range(len(xedges)-1):
+                    for i_y  in range(len(yedges)-1):
+                        ax.text(midbins[i_x],
+                                midbins[i_y],
+                                int(EventCount[i_x, i_y]),
+                                color='k',
+                                ha='center',
+                                va='center',
+                                fontweight='normal',
+                                fontsize = 14,
+                               )
+
+            if step_contours:
+                median.append(median[-1])
+                ax.step(plot_bins, median,
+                        color='tab:red',
+                        label='median',
+                        lw=2.,
+                        where='post',
+                       )
+                pct_16.append(pct_16[-1])
+                ax.step(plot_bins, pct_16,
+                        color='tab:red',
+                        label='$68\%$ band',
+                        lw=2.,
+                        linestyle='dashed',
+                        where='post',
+                       )
+                pct_84.append(pct_84[-1])
+                ax.step(plot_bins, pct_84,
+                        color='tab:red',
+        #                 label='$\pm25\%$',
+                        lw=2.,
+                        linestyle='dashed',
+                        where='post',
+                       )
+
+        #             print(plot_bins[0], plot_bins[1])
+        #             print(median[0])
+        #             print(H[:,0])
+
+            else:
+                ax.plot(midbins, median, color='tab:red', label='median',lw=3.)
+                ax.plot(midbins, pct_16, color='tab:red', label='$68\%$ band', linestyle='dashed',lw=3.)
+                ax.plot(midbins, pct_84, color='tab:red', linestyle='dashed',lw=3.)
+
+            if log_axis_bool:
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+                ax.minorticks_on()
+            else:
+    #             ax.set_xticks(ticks_dict['major'])
+    #             ax.set_xticklabels(ticks_dict['major'])
+    #             ax.set_xticks(ticks_dict['minor'], minor=True)
+    #             ax.set_yticks(ticks_dict['major'])
+    #             ax.set_yticklabels(ticks_dict['major'])
+    #             ax.set_yticks(ticks_dict['minor'], minor=True)
+                ax.minorticks_on()
+
+        #         plt.ylim(tuple(e_minmax))
+            plt.legend(
+                loc='upper left',
+    #             frameon=True,
+                fontsize=20,
+                      )
+
+            ax.set_xlabel(true_label)
+            ax.set_ylabel(reco_label)
+
+            ax.set_title(ax_title)
+
+            fig.tight_layout()
+
+    #         plot_dir = os.path.join(base_plot_dir, '2_d_hists')
+    #         plot_dir = os.path.join(plot_dir, 'good_fit')
+
+            plot_dir = os.path.join(base_plot_dir, 'taupede_performance')
+
+            filename = '{3}_{0}_vs_{1}_{2}.png'.format(reco_variable, true_variable, ax_label, simset)
+
+            if step_contours:filename = filename.split('.png')[0] + '_step_contours.png'
+
+            if not scale_per_column:
+                plot_dir = os.path.join(plot_dir, 'total_events')
+                filename = filename.split('.png')[0] + '_total_events.png'
+
+            if not os.path.isdir(plot_dir):
+                os.makedirs(plot_dir)
+
+        #     filename = fit_name.replace(' ', '_') + '_' + filename
+
+        #         print(filename)
+
+            filepath = os.path.join(plot_dir,filename)
+
+            print(filepath)
+    #         fig.savefig(filepath, dpi=300)
+
+            break
+        break
+
+'''

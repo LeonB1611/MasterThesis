@@ -143,13 +143,36 @@ class GENIENeutrinoWeighter(object):
                 en_splines=self.flux_table[table],
                 out=flux_data[out_name][:, index],
             )
+
+        #### Calculate oscillation probabilities
+        self.layers.calcLayers(cos_zenith)
+        densities = self.layers.density.reshape((len(energy), self.layers.max_layers))
+        distances = self.layers.distance.reshape((len(energy), self.layers.max_layers))
+
+        probability = np.empty((len(energy), 3, 3))
+
+        print("Calculating oscillation probabilities...")
+        self.calc_probs(
+            nubar,
+            energy,
+            densities,
+            distances,
+            out=probability,
+        )
+
+        index = np.arange(len(probability))
+        # intuitively I would have thought that this should work with
+        # probability[:, 0, flav], but it doesn't. This below is super hacky, but
+        # I gave up figuring out how to use Ellipsis correctly here.
+        prob_from_nue = probability[index, 0, flav]
+        prob_from_numu = probability[index, 1, flav]
         
         # Apply flux and oscillations
         nue_flux = np.where(nubar > 0, nu_flux_nominal[:, 0], nubar_flux_nominal[:, 0])
         numu_flux = np.where(nubar > 0, nu_flux_nominal[:, 1], nubar_flux_nominal[:, 1])
 
-        weight_with_osc = weighted_aeff * np.array([nue_flux ,
-                                                    numu_flux])
+        weight_with_osc = weighted_aeff * np.array([nue_flux * prob_from_nue,
+                                                    numu_flux * prob_from_numu])
 
         return weight_with_osc
         #return probability
