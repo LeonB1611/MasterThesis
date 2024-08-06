@@ -15,7 +15,7 @@ from pisa.stages.osc.prob3numba.numba_osc_hostfuncs import propagate_array, fill
 from pisa.utils.resources import find_resource
 
 
-class GENIENeutrinoWeighter(object):
+class GENIENeutrinoWeighter_split(object):
     """
     A class for adding weights to neutrino events that take into account flux and
     oscillations. This assumes that the events were generated with GENIE.
@@ -120,7 +120,7 @@ class GENIENeutrinoWeighter(object):
             out=out,
         )
 
-    def __call__(self, energy, cos_zenith, nubar, weighted_aeff):
+    def __call__(self, energy, cos_zenith, flav, nubar, weighted_aeff):
 
         #### Calculate flux
         out_names = ["nu_flux_nominal"] * 2 + ["nubar_flux_nominal"] * 2
@@ -166,15 +166,16 @@ class GENIENeutrinoWeighter(object):
         # I gave up figuring out how to use Ellipsis correctly here.
         prob_from_nue = probability[index, 0, flav]
         prob_from_numu = probability[index, 1, flav]
-        
+
         # Apply flux and oscillations
         nue_flux = np.where(nubar > 0, nu_flux_nominal[:, 0], nubar_flux_nominal[:, 0])
         numu_flux = np.where(nubar > 0, nu_flux_nominal[:, 1], nubar_flux_nominal[:, 1])
 
-        weight_with_osc = weighted_aeff * np.array([nue_flux * prob_from_nue,
-                                                    numu_flux * prob_from_numu])
+        fluxfactor = [nue_flux,numu_flux]
+        probfactor = [prob_from_nue,prob_from_numu]
+        weightfactor = [weighted_aeff,weighted_aeff]
 
-        return weight_with_osc
+        return fluxfactor,probfactor,weightfactor
         #return probability
 
 class GENIENeutrinoWeighter_Backup(object):
