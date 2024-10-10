@@ -11,7 +11,7 @@ from pisa.utils.flux_weights import load_2d_table, calculate_2d_flux_weights
 from pisa.stages.osc.osc_params import OscParams
 from pisa.stages.osc.decay_params import DecayParams
 from pisa.stages.osc.layers import Layers
-from pisa.stages.osc.prob3numba.numba_osc_hostfuncs import propagate_array, fill_probs
+from pisa.stages.osc.prob3numba.numba_osc_hostfuncs2 import propagate_array, fill_probs
 from pisa.utils.resources import find_resource
 
 
